@@ -1,0 +1,12 @@
+kind: ImageStream
+apiVersion: image.openshift.io/v1
+metadata:
+  name: gitlab-runner
+  labels:
+    app: gitlab-runner
+spec:
+  tags:
+  - name: {{ .Values.imageTag }}
+    from:
+      kind: DockerImage
+      name: {{ .Values.imageName }}:{{ .Values.imageTag }}

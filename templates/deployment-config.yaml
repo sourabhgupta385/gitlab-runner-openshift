@@ -1,0 +1,92 @@
+kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+metadata:
+  name: gitlab-runner
+  labels:
+    app: gitlab-runner
+spec:
+  strategy:
+    type: Recreate
+  triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+          - gitlab-runner
+        from:
+          kind: ImageStreamTag
+          name: gitlab-runner:{{.Values.imageTag}}
+          #name: gitlab-runner:alpine-v11.5.1
+  replicas: 1
+  test: false
+  selector:
+    app: gitlab-runner
+    deploymentconfig: gitlab-runner
+  template:
+    metadata:
+      labels:
+        app: gitlab-runner
+        deploymentconfig: gitlab-runner
+    spec:
+      volumes:
+        - name: scripts
+          configMap:
+            name: gitlab-runner-scripts
+      containers:
+        - name: gitlab-runner
+          image: gitlab-runner
+          command: ["/bin/bash", "/scripts/entrypoint"]
+          ports:
+            - containerPort: 22
+              protocol: TCP
+            - containerPort: 80
+              protocol: TCP
+          env:
+            - name: GITLAB_URL
+              value: {{ .Values.gitlabUrl }}
+            - name: REGISTRATION_TOKEN
+              value: {{ .Values.runnerRegistrationToken }}
+            - name: KUBERNETES_PRIVILEGED
+              value: "true"
+            - name: KUBERNETES_IMAGE
+              value: {{ .Values.runners.image }}
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: "metadata.namespace"
+          resources:
+            limits:
+              cpu: "600m"
+              memory: "600Mi"
+            requests:
+              cpu: "100m"
+              memory: "300Mi"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          livenessProbe:
+            exec:
+              command: ["/bin/bash", "/scripts/check-live"]
+            initialDelaySeconds: 60
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["/usr/bin/pgrep", "gitlab.*runner"]
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          terminationMessagePath: "/dev/termination-log"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: {{ .Values.runners.privileged }}
+            runAsUser: 0
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      serviceAccount: gitlab-runner-user

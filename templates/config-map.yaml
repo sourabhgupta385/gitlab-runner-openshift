@@ -1,0 +1,28 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: gitlab-runner-scripts
+data:
+  entrypoint: |
+    #!/bin/bash
+    set -xe
+    cp /scripts/config.toml /etc/gitlab-runner/
+    # Register the runner
+    /entrypoint register --non-interactive \
+      --url {{ .Values.gitlabUrl }} \
+      --executor kubernetes
+    # Start the runner
+    /entrypoint run --user=gitlab-runner \
+      --working-directory=/home/gitlab-runner
+
+  config.toml: |
+    concurrent = {{ .Values.concurrent }}
+    check_interval = {{ .Values.checkInterval }}
+
+  check-live: |
+    #!/bin/bash
+    if /usr/bin/pgrep gitlab.*runner; then
+      exit 0
+    else
+      exit 1
+    fi
