@@ -39,7 +39,9 @@ been done.
 $ oc login <server-url> --token=<token>
 ```
 
-3. Install helm chart
+3. Provide `gitlabUrl` and `runnerRegistrationToken` in `values.yaml`.
+
+4. Install helm chart
 
 ```
 $ helm install gitlab-runner .\gitlab-runner-openshift --namespace <project-name>
